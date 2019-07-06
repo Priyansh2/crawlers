@@ -1,5 +1,5 @@
 import re
-
+import os
 import scrapy
 from scrapy.http import FormRequest, Request
 from w3lib.url import url_query_parameter
@@ -25,6 +25,11 @@ def load_review(review, product_id, page, order):
     loader.add_css('compensation', '.received_compensation::text')
 
     # User/reviewer data.
+    #try:
+        #userid = review.xpath('//div[@class="apphub_friend_block"]/@data-miniprofile').extract()[0]
+    #except IndexError:
+        #userid = "NA"
+    #loader.add_value('user_id',userid)
     loader.add_css('user_id', '.apphub_CardContentAuthorName a::attr(href)', re='.*/profiles/(.+)/')
     loader.add_css('username', '.apphub_CardContentAuthorName a::text')
     loader.add_css('products', '.apphub_CardContentMoreLink ::text', re='([\d,]+) product')
@@ -71,9 +76,10 @@ def get_product_id(response):
 
 class ReviewSpider(scrapy.Spider):
     name = 'reviews'
-    test_urls = [
-        # Full Metal Furies
-        'http://steamcommunity.com/app/416600/reviews/?browsefilter=mostrecent&p=1',
+    test_urls = ['http://steamcommunity.com/app/416600/reviews/?browsefilter=mostrecent&p=1',
+    'http://steamcommunity.com/app/316790/reviews/?browsefilter=mostrecent&p=1',
+    'http://steamcommunity.com/app/207610/reviews/?browsefilter=mostrecent&p=1',
+    'http://steamcommunity.com/app/414700/reviews/?browsefilter=mostrecent&p=1'
     ]
 
     def __init__(self, url_file=None, steam_id=None, *args, **kwargs):
@@ -82,17 +88,27 @@ class ReviewSpider(scrapy.Spider):
         self.steam_id = steam_id
 
     def read_urls(self):
-        with open(self.url_file, 'r') as f:
-            for url in f:
-                url = url.strip()
-                if url:
-                    yield scrapy.Request(url, callback=self.parse)
+        if "*" in self.url_file:
+            file_path = self.url_file.split("*")[0]
+            prefix = self.url_file.split("*")[1]
+            files = sorted([file for file in os.listdir(file_path) if prefix in file])
+            for file in files:
+                url_file = os.path.join(file_path,file)
+                with open(url_file, 'r') as f:
+                    for url in f:
+                        url = url.strip()
+                        if url:
+                            yield scrapy.Request(url, callback=self.parse)
+        else:
+            with open(self.url_file, 'r') as f:
+                for url in f:
+                    url = url.strip()
+                    if url:
+                        yield scrapy.Request(url, callback=self.parse)
 
     def start_requests(self):
         if self.steam_id:
-            url = (
-                f'http://steamcommunity.com/app/{self.steam_id}/reviews/'
-                '?browsefilter=mostrecent&p=1'
+            url = (f'http://steamcommunity.com/app/{self.steam_id}/reviews/?browsefilter=mostrecent&p=1'
             )
             yield Request(url, callback=self.parse)
         elif self.url_file:

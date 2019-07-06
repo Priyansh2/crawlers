@@ -1,13 +1,11 @@
-from datetime import datetime, date
-import logging
+# -*- coding: utf-8 -*-
 
 import scrapy
+from datetime import datetime, date
+import logging
 from scrapy.loader import ItemLoader
 from scrapy.loader.processors import Compose, Join, MapCompose, TakeFirst
-
 logger = logging.getLogger(__name__)
-
-
 class StripText:
     def __init__(self, chars=' \r\t\n'):
         self.chars = chars
@@ -71,15 +69,17 @@ class ProductItem(scrapy.Item):
     id = scrapy.Field()
     app_name = scrapy.Field()
     reviews_url = scrapy.Field()
+    img_url = scrapy.Field()
     title = scrapy.Field()
     genres = scrapy.Field(
         output_processor=Compose(TakeFirst(), lambda x: x.split(','), MapCompose(StripText()))
     )
     developer = scrapy.Field()
+    franchise = scrapy.Field()
     publisher = scrapy.Field()
-    release_date = scrapy.Field(
-        output_processor=Compose(TakeFirst(), StripText(), standardize_date)
-    )
+    release_date = scrapy.Field()
+    short_game_description = scrapy.Field()
+    #long_game_description = scrapy.Field()
     specs = scrapy.Field(
         output_processor=MapCompose(StripText())
     )
@@ -103,6 +103,7 @@ class ProductItem(scrapy.Item):
             max
         )
     )
+    user_reviews_info = scrapy.Field()
     metascore = scrapy.Field(
         output_processor=Compose(TakeFirst(), StripText(), str_to_int)
     )

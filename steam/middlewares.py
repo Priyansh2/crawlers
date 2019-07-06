@@ -35,12 +35,7 @@ class CircumventAgeCheckMiddleware(RedirectMiddleware):
     def _redirect(self, redirected, request, spider, reason):
         # Only overrule the default redirect behavior
         # in the case of mature content checkpoints.
-        if not re.findall('app/(.*)/agecheck', redirected.url):
+        if not re.findall('agecheck/app/(.*)', redirected.url):
             return super()._redirect(redirected, request, spider, reason)
-
         logger.debug(f'Button-type age check triggered for {request.url}.')
-
-        return Request(url=request.url,
-                       cookies={'mature_content': '1'},
-                       meta={'dont_cache': True},
-                       callback=spider.parse_product)
+        return Request(url=redirected.url,cookies = {'wants_mature_content':'1','birthtime':'189302401','lastagecheckage': '1-January-1976',},meta={'dont_cache': True},callback=spider.parse_product)
