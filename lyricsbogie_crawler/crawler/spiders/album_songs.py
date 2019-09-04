@@ -54,7 +54,7 @@ class AlbumSongsSpider(scrapy.Spider):
 					temp['album_songs_url'] = url
 					album_data.append(temp)
 			for album_info in album_data:
-				yield scrapy.Request(url=album_info['album_songs_url'],callback=self.parse_songs,meta={"album_info":album_info})
+				yield scrapy.Request(url=album_info['album_songs_url'],callback=self.parse_songs,meta={"album_info":album_info},dont_filter=True)
 		else:
 			logger.info(f"Failed to parse album in {response.url}.")
 
@@ -62,13 +62,13 @@ class AlbumSongsSpider(scrapy.Spider):
 	def parse_songs(self,response):
 		album_info = response.meta.get("album_info")
 
-		album_cover_image_url = response.xpath('//*[@class="album_detail"]/div[@class="album_image"]/img/@data-lazy-src').extract()
+		album_cover_image_url = response.xpath('//*[@class="movie_detail"]/div[@class="movie_image"]/img/@data-lazy-src').extract()
 		if album_cover_image_url:
 			album_cover_image_url = album_cover_image_url[0]
 		else:
 			album_cover_image_url = "N/A"
 
-		ps = response.xpath('//*[@class="album_detail"]/p')
+		ps = response.xpath('//*[@class="movie_detail"]/p')
 		album_starring, album_producer, album_director, album_songs_director, album_songs_lyricist, album_songs_composer, album_release_date = ["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"]
 		for p in ps:
 			item_name = p.xpath('./span/text()').extract_first()
@@ -113,7 +113,7 @@ class AlbumSongsSpider(scrapy.Spider):
 				song_data.append(temp)
 			album_info["album_songs"] = song_data
 			for song_info in album_info["album_songs"]:
-				yield scrapy.Request(url=song_info['song_lyrics_url'],callback=self.parse_lyrics,meta={'album_and_songs_info':album_info,'song_info':song_info})
+				yield scrapy.Request(url=song_info['song_lyrics_url'],callback=self.parse_lyrics,meta={'album_and_songs_info':album_info,'song_info':song_info},dont_filter=True)
 		else:
 			logger.info(f'Failed to parse song in {response.url}.')
 
@@ -125,7 +125,7 @@ class AlbumSongsSpider(scrapy.Spider):
 		if song_lyrics is not None and song_type!="tv-shows":
 			album_and_songs_info = response.meta.get("album_and_songs_info")
 			song_info = response.meta.get('song_info')
-			ps = response.xpath('//*[contains(@class,"album_detail")]/p')
+			ps = response.xpath('//*[contains(@class,"movie_detail")]/p')
 			song_singer, song_lyricist, song_composer, song_director, song_label, song_release_date, song_starring = ["N/A"] ,["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"]
 			for p in ps:
 				item_name = p.xpath('./span/text()').extract_first()
@@ -151,7 +151,7 @@ class AlbumSongsSpider(scrapy.Spider):
 				elif "Starring" in item_name:
 					song_starring = str_to_comma_separated(items)
 
-			song_scores =  response.xpath('//*[@class="post-ratings" and @id="post-ratings-18491"]/strong/text()').extract()
+			song_scores =  response.xpath('//*[@class="post-ratings" and contains(@id,"post-ratings")]/strong/text()').extract()
 			if song_scores:
 				try:
 					song_votes = int(song_scores[0]) ## vote count (people who voted or gives their rating our of 5)

@@ -53,7 +53,7 @@ class MovieSongsSpider(scrapy.Spider):
 				temp['movie_songs_url'] = url
 				movie_data.append(temp)
 			for movie_info in movie_data:
-				yield scrapy.Request(url=movie_info['movie_songs_url'],callback=self.parse_songs,meta={"movie_info":movie_info})
+				yield scrapy.Request(url=movie_info['movie_songs_url'],callback=self.parse_songs,meta={"movie_info":movie_info},dont_filter=True)
 		else:
 			logger.info(f"Failed to parse movie in {response.url}.")
 
@@ -111,57 +111,56 @@ class MovieSongsSpider(scrapy.Spider):
 				song_data.append(temp)
 			movie_info["movie_songs"] = song_data
 			for song_info in movie_info["movie_songs"]:
-				yield scrapy.Request(url=song_info['song_lyrics_url'],callback=self.parse_lyrics,meta={'movie_and_songs_info':movie_info,'song_info':song_info})
+				yield scrapy.Request(url=song_info['song_lyrics_url'],callback=self.parse_lyrics,meta={'movie_and_songs_info':movie_info,'song_info':song_info},dont_filter=True)
 		else:
 			logger.info(f'Failed to parse song in {response.url}.')
 
 
 	def parse_lyrics(self,response):
-		movie_and_songs_info = response.meta.get("movie_and_songs_info")
-		song_info = response.meta.get('song_info')
-		## will extract music singers
-		ps = response.xpath('//*[contains(@class,"movie_detail")]/p')
-		song_singer, song_lyricist, song_composer, song_director, song_label, song_release_date, song_starring = ["N/A"] ,["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"]
-		for p in ps:
-			item_name = p.xpath('./span/text()').extract_first()
-			items = p.xpath('./a/text()').extract()
-			if not items:
-				items = p.xpath('./text()').extract()
-			if "Singers" in item_name:
-				song_singer = str_to_comma_separated(items)
-			elif "Song Lyricists" in item_name:
-				song_lyricist = str_to_comma_separated(items)
-			elif "Music Composer" in item_name:
-				song_composer = str_to_comma_separated(items)
-			elif "Music Director" in item_name:
-				song_director = str_to_comma_separated(items)
-			elif "Music Label" in item_name:
-				song_label = str_to_comma_separated(items)
-			elif "Release on" in item_name:
-				try:
-					date = parser.parse(items[0]).strftime("%Y-%m-%d")
-				except IndexError:
-					data="N/A"
-				song_release_date =str_to_comma_separated([date])
-			elif "Starring" in item_name:
-				song_starring = str_to_comma_separated(items)
-
 		song_type = response.url.split("/")[3] ## whether a song is from album,movie,tv-shows
 		song_lyrics = response.css("div#lyricsDiv.left blockquote p::text").extract()
-		song_scores =  response.xpath('//*[@class="post-ratings" and @id="post-ratings-18491"]/strong/text()').extract()
-		if song_scores:
-			try:
-				song_votes = int(song_scores[0]) ## vote count (people who voted or gives their rating our of 5)
-			except (IndexError,ValueError) as e:
-				song_votes=0
-			try:
-				song_rating = song_scores[1] ## Average rating out of 5 (star rating) [sum of ratings by users/ total users]
-			except (IndexError,ValueError) as e:
-				song_rating=0
-		else:
-			song_votes,song_rating=0,0
+		if song_lyrics is not None and song_type!="tv-shows":# don't want song with no lyrics and any "tv-show" song
+			movie_and_songs_info = response.meta.get("movie_and_songs_info")
+			song_info = response.meta.get('song_info')
+			ps = response.xpath('//*[contains(@class,"movie_detail")]/p')
+			song_singer, song_lyricist, song_composer, song_director, song_label, song_release_date, song_starring = ["N/A"] ,["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"]
+			for p in ps:
+				item_name = p.xpath('./span/text()').extract_first()
+				items = p.xpath('./a/text()').extract()
+				if not items:
+					items = p.xpath('./text()').extract()
+				if "Singers" in item_name:
+					song_singer = str_to_comma_separated(items)
+				elif "Song Lyricists" in item_name:
+					song_lyricist = str_to_comma_separated(items)
+				elif "Music Composer" in item_name:
+					song_composer = str_to_comma_separated(items)
+				elif "Music Director" in item_name:
+					song_director = str_to_comma_separated(items)
+				elif "Music Label" in item_name:
+					song_label = str_to_comma_separated(items)
+				elif "Release on" in item_name:
+					try:
+						date = parser.parse(items[0]).strftime("%Y-%m-%d")
+					except IndexError:
+						data="N/A"
+					song_release_date =str_to_comma_separated([date])
+				elif "Starring" in item_name:
+					song_starring = str_to_comma_separated(items)
 
-		if song_lyrics is not None and song_type!="tv-shows": ## dont want song with no lyrics and any "tv-show" song
+			song_scores =  response.xpath('//*[@class="post-ratings" and contains(@id,"post-ratings")]/strong/text()').extract()
+			if song_scores:
+				try:
+					song_votes = int(song_scores[0]) ## vote count (people who voted or gives their rating our of 5)
+				except (IndexError,ValueError) as e:
+					song_votes=0
+				try:
+					song_rating = song_scores[1] ## Average rating out of 5 (star rating) [sum of ratings by users/ total users]
+				except (IndexError,ValueError) as e:
+					song_rating=0
+			else:
+				song_votes,song_rating=0,0
+
 			for j in range(len(movie_and_songs_info["movie_songs"])):
 				if movie_and_songs_info["movie_songs"][j]==song_info:
 					movie_and_songs_info["movie_songs"][j]["song_singer"] = song_singer

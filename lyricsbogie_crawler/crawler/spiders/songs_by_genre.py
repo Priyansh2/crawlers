@@ -59,13 +59,13 @@ class SongsByGenreSpider(scrapy.Spider):
 				data["song_genre"] = song_genre
 				data["song_lyrics_url"] = link
 				data["song_type"] = song_type
-				yield scrapy.Request(url = link,callback=self.parse_lyrics,meta={"data":data})
+				yield scrapy.Request(url = link,callback=self.parse_lyrics,meta={"data":data},dont_filter=True)
 
 	def parse_lyrics(self,response):
 		song_lyrics = response.css("div#lyricsDiv.left blockquote p::text").extract()
 		if song_lyrics is not None:
 			data = response.meta.get("data")
-			ps = response.xpath('//*[contains(@class,"album_detail")]/p')
+			ps = response.xpath('//*[contains(@class,"movie_detail")]/p')
 			movie_or_album_name, movie_or_album_director, song_singer, song_lyricist, song_composer, song_director, song_label, song_release_date, song_starring = ["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"], ["N/A"]
 			for p in ps:
 				item_name = p.xpath('./span/text()').extract_first()
@@ -101,7 +101,7 @@ class SongsByGenreSpider(scrapy.Spider):
 				cover_image_url = "N/A"
 			movie_or_album_cover_image_url = cover_image_url
 			song_name = response.css("h1.page-title::text").extract()[0].split("Lyrics -")[0].strip()
-			song_scores =  response.xpath('//*[@class="post-ratings" and @id="post-ratings-18491"]/strong/text()').extract()
+			song_scores =  response.xpath('//*[@class="post-ratings" and contains(@id,"post-ratings")]/strong/text()').extract()
 			if song_scores:
 				try:
 					song_votes = int(song_scores[0]) ## vote count (people who voted or gives their rating our of 5)

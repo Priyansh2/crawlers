@@ -16,7 +16,7 @@ NEWSPIDER_MODULE = 'crawler.spiders'
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-USER_AGENT = 'Lyrics Crawler'
+USER_AGENT = 'takedown'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
