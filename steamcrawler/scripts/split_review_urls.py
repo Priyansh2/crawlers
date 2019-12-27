@@ -7,8 +7,6 @@ import argparse
 import json
 import math
 import os
-from random import shuffle
-
 import numpy as np
 import pandas as pd
 

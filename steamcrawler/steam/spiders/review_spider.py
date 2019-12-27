@@ -6,10 +6,12 @@ from w3lib.url import url_query_parameter
 from dateutil import parser
 from ..items import ReviewItem, ReviewItemLoader, str_to_int
 logger = logging.getLogger(__name__)
-## Run with shards (multiple files with with some common prefix. See below)
-#scrapy crawl reviews -o output/reviews_all.jl -a url_file=$(pwd)/output/review_urls/*review_urls_ --logfile=output/reviews_all.log --loglevel=INFO -s JOBDIR=output/reviews_all_job
+## Run all batches at once (running multiple files with some common prefix all at once)
+# scrapy crawl reviews -o output/reviews_all.jl -a url_file=$(pwd)/output/batches* --logfile=output/reviews_all.log --loglevel=INFO -s JOBDIR=output/reviews_all_job
+## Run in batches (Example for 'batch1' is given below)
+# scrapy crawl reviews -o product_reviews/output1/reviews.jl -a url_file=$(pwd)/output/batches/batch1 --logfile=product_reviews/output1/out.log --loglevel=INFO -s JOBDIR=product_reviews/output1/jobs
 ## Run with single file as arguement
-#scrapy crawl reviews -o output/reviews_all.jl -a url_file=$(pwd)/output/review_urls/review_urls_01.txt --logfile=output/reviews_all.log --loglevel=INFO -s JOBDIR=output/reviews_all_job
+# scrapy crawl reviews -o output/reviews_all.jl -a url_file=$(pwd)/output/review_urls/review_urls_01.txt --logfile=output/reviews_all.log --loglevel=INFO -s JOBDIR=output/reviews_all_job
 def standardize_date(x):
 	d = parser.parse(x)
 	return d.strftime("%Y-%m-%d")
@@ -121,19 +123,37 @@ class ReviewSpider(scrapy.Spider):
 
 	def read_urls(self):
 		if "*" in self.url_file:
-			file_path = self.url_file.split("*")[0]
-			prefix = self.url_file.split("*")[1]
-			files = sorted([file for file in os.listdir(file_path) if prefix in file])
-			for file in files:
-				url_file = os.path.join(file_path,file)
-				with open(url_file, 'r') as f:
+			dir_path = self.url_file.split("*")[0]
+			bl = open(dir_path.split("batches")[0]+"processed_batch_list.txt","w")
+			processed_batch_names = [batch_name.strip() for batch_name in open(dir_path.split("batches")[0]+"processed_batch_list.txt","r").read().split("\n") if batch_name.strip()]
+			for folder in sorted(os.listdir(dir_path)):
+				if processed_batch_names and folder in processed_batch_names:
+					continue
+				for filename in sorted(os.listdir(os.path.join(dir_path,folder))):
+					file = os.path.join(dir_path+"/"+folder,filename)
+					with open(file, 'r') as f:
+						for url in f:
+							url = url.strip()
+							if url:
+								url+='&filterLanguage=english'
+								yield scrapy.Request(url, callback=self.parse)
+					f.close()
+					logger.info('Processed '+folder+"/"+filename+'.')
+				bl.write(folder+"\n")
+				bl.close()
+				break
+		elif "batches/batch" in self.url_file:
+			for filename in sorted(os.listdir(self.url_file)):
+				file = os.path.join(self.url_file,filename)
+				with open(file, 'r') as f:
 					for url in f:
 						url = url.strip()
 						if url:
 							url+='&filterLanguage=english'
 							yield scrapy.Request(url, callback=self.parse)
 				f.close()
-				logger.info(f'Processed {file}.')
+				folder = self.url_file.split("/")[-1]
+				logger.info('Processed +'+folder+"/"+filename+'.')
 				time.sleep(120)
 		else:
 			with open(self.url_file, 'r') as f:
